@@ -48,10 +48,6 @@ export function EventDialog({
   isNewEvent,
   onCreate,
 }: EventDialogProps) {
-  if (!event) {
-    return null;
-  }
-
   const [isEditing, setIsEditing] = useState(false);
   const [draftEvent, setDraftEvent] = useState<EventItem | null>(event);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,15 +56,6 @@ export function EventDialog({
     setDraftEvent(event);
     setIsEditing(Boolean(isNewEvent));
   }, [event, isNewEvent]);
-
-  if (!event || !draftEvent) {
-    return null;
-  }
-
-  const category = categories.find((item) => item.id === event.categoryId);
-  const eventTags = tags.filter((tag) => event.tagIds.includes(tag.id));
-  const organiser = users.find((user) => user.id === event.organiserId);
-  const attendees = users.filter((user) => event.attendeeIds.includes(user.id));
 
   function toDateTimeLocalValue(date: string) {
     return date.slice(0, 16);
@@ -100,6 +87,15 @@ export function EventDialog({
       window.clearTimeout(timeoutId);
     };
   }, [draftEvent, event, isEditing, onUpdate]);
+
+  if (!event || !draftEvent) {
+    return null;
+  }
+
+  const category = categories.find((item) => item.id === event.categoryId);
+  const eventTags = tags.filter((tag) => event.tagIds.includes(tag.id));
+  const organiser = users.find((user) => user.id === event.organiserId);
+  const attendees = users.filter((user) => event.attendeeIds.includes(user.id));
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
