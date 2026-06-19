@@ -7,6 +7,8 @@ type MultiUserPickerProps = {
   onChange: (userIds: string[]) => void;
 };
 
+// Multi-user picker for attendees. The event data stays lightweight by storing
+// only user IDs, while Autocomplete renders names and avatars.
 export function MultiUserPicker({
   users,
   value,

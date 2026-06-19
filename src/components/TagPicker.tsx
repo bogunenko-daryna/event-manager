@@ -7,6 +7,8 @@ type TagPickerProps = {
   onChange: (tagIds: string[]) => void;
 };
 
+// Reusable tag selector used by filters and the event dialog. Like users, tags
+// are stored on events as IDs and resolved to labels for display.
 export function TagPicker({ tags, value, onChange }: TagPickerProps) {
   const selectedTags = tags.filter((tag) => value.includes(tag.id));
 

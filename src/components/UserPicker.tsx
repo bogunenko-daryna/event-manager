@@ -8,6 +8,8 @@ type UserPickerProps = {
   label: string;
 };
 
+// Single-user picker for the event organiser. The component receives/stores an
+// ID, but displays the full user object through MUI Autocomplete.
 export function UserPicker({ users, value, onChange, label }: UserPickerProps) {
   const selectedUser = users.find((user) => user.id === value) ?? null;
 

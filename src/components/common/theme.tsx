@@ -1,5 +1,7 @@
 import { createTheme } from "@mui/material";
 
+// Central MUI theme. Keeping global baseline and component overrides here avoids
+// separate CSS files while still making the app styling reusable.
 export const theme = createTheme({
   palette: {
     mode: "light",

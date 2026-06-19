@@ -4,6 +4,7 @@ import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import { UserPicker } from "./UserPicker";
 import { MultiUserPicker } from "./MultiUserPicker";
 import { TagPicker } from "./TagPicker";
+import { RichTextEditor } from "./RichTextEditor";
 import {
   Avatar,
   Box,
@@ -23,6 +24,7 @@ import type { EventItem } from "../types/event";
 import type { Tag } from "../types/tag";
 import type { User } from "../types/user";
 import { useEffect, useState } from "react";
+import { getPlainTextFromRichText, sanitizeRichText } from "../utils/richText";
 
 type EventDialogProps = {
   event: EventItem | null;
@@ -37,6 +39,8 @@ type EventDialogProps = {
   onCreate: (event: EventItem) => Promise<void>;
 };
 
+// EventDialog is used for both viewing and editing an event. Existing events
+// open read-only first, while new events open directly in edit mode.
 export function EventDialog({
   event,
   open,
@@ -53,6 +57,8 @@ export function EventDialog({
   const [draftEvent, setDraftEvent] = useState<EventItem | null>(event);
   const [isSaving, setIsSaving] = useState(false);
 
+  // datetime-local inputs need local time strings, but the app stores dates as
+  // ISO strings so they can be persisted consistently in localStorage.
   function toDateTimeLocalValue(date: string) {
     const value = new Date(date);
     const offset = value.getTimezoneOffset() * 60_000;
@@ -62,10 +68,6 @@ export function EventDialog({
 
   function fromDateTimeLocalValue(value: string) {
     return new Date(value).toISOString();
-  }
-
-  function getPlainDescription(description: string) {
-    return description.replace(/<[^>]+>/g, "").trim();
   }
 
   const hasValidDateRange =
@@ -89,6 +91,8 @@ export function EventDialog({
     setIsEditing(false);
   }
 
+  // Existing events save automatically after the user pauses typing. New events
+  // wait for the explicit Create button so incomplete drafts are not persisted.
   useEffect(() => {
     if (isNewEvent || !isEditing || !draftEvent || !event) {
       return;
@@ -123,6 +127,8 @@ export function EventDialog({
 
   const category = categories.find((item) => item.id === event.categoryId);
   const eventTags = tags.filter((tag) => event.tagIds.includes(tag.id));
+  // Events store only user IDs; the dialog resolves them to full user objects
+  // for avatars and readable names.
   const organiser = users.find((user) => user.id === event.organiserId);
   const attendees = users.filter((user) => event.attendeeIds.includes(user.id));
 
@@ -277,23 +283,36 @@ export function EventDialog({
             </Typography>
 
             {isEditing ? (
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                placeholder="Add agenda, location, links, or notes"
+              <RichTextEditor
                 value={draftEvent.description}
-                onChange={(e) =>
+                onChange={(description) =>
                   setDraftEvent({
                     ...draftEvent,
-                    description: e.target.value,
+                    description,
                   })
                 }
               />
             ) : (
-              <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
-                {getPlainDescription(draftEvent.description) || "No description"}
-              </Typography>
+              <Box
+                sx={{
+                  mt: 1,
+                  "& p": { my: 0.5 },
+                  "& ul": { my: 0.5, pl: 3 },
+                  "& a": { color: "primary.main" },
+                }}
+              >
+                {getPlainTextFromRichText(draftEvent.description) ? (
+                  <Box
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeRichText(draftEvent.description),
+                    }}
+                  />
+                ) : (
+                  <Typography color="text.secondary">
+                    No description
+                  </Typography>
+                )}
+              </Box>
             )}
           </Box>
 

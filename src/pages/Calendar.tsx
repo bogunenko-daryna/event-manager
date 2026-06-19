@@ -16,7 +16,11 @@ import AddIcon from "@mui/icons-material/Add";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import { EventCalendar } from "@mui/x-scheduler/event-calendar";
-import type { SchedulerEvent } from "@mui/x-scheduler/models";
+import type {
+  SchedulerEventColor,
+  SchedulerEventModelStructure,
+  SchedulerResource,
+} from "@mui/x-scheduler/models";
 
 import { EventDialog } from "../components/EventDialog";
 import { TagPicker } from "../components/TagPicker";
@@ -29,6 +33,67 @@ import type { EventItem } from "../types/event";
 import type { Tag } from "../types/tag";
 import type { User } from "../types/user";
 
+type CalendarSchedulerEvent = EventItem & {
+  color: SchedulerEventColor;
+  resource: string;
+};
+
+const schedulerColors: SchedulerEventColor[] = [
+  "blue",
+  "purple",
+  "orange",
+  "green",
+  "red",
+  "teal",
+  "indigo",
+  "amber",
+  "grey",
+  "pink",
+];
+
+const schedulerEventModelStructure: SchedulerEventModelStructure<CalendarSchedulerEvent> =
+  {
+    id: {
+      getter: (event) => event.id,
+    },
+    title: {
+      getter: (event) => event.title,
+      setter: (event, value) => ({ ...event, title: String(value) }),
+    },
+    description: {
+      getter: (event) => event.description,
+      setter: (event, value) => ({
+        ...event,
+        description: String(value ?? ""),
+      }),
+    },
+    start: {
+      getter: (event) => event.start,
+      setter: (event, value) => ({
+        ...event,
+        start: new Date(value).toISOString(),
+      }),
+    },
+    end: {
+      getter: (event) => event.end,
+      setter: (event, value) => ({
+        ...event,
+        end: new Date(value).toISOString(),
+      }),
+    },
+    resource: {
+      getter: (event) => event.resource,
+      setter: (event, value) => ({
+        ...event,
+        categoryId: String(value ?? event.categoryId),
+        resource: String(value ?? event.resource),
+      }),
+    },
+    color: {
+      getter: (event) => event.color,
+    },
+  };
+
 export function CalendarPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -38,6 +103,11 @@ export function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [isNewEvent, setIsNewEvent] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hoveredEvent, setHoveredEvent] = useState<EventItem | null>(null);
+  const [mousePosition, setMousePosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -116,12 +186,54 @@ export function CalendarPage() {
     return matchesCategory && matchesTags;
   });
 
-  const schedulerEvents: SchedulerEvent[] = filteredEvents.map((event) => ({
-    id: event.id,
-    title: event.title || "Untitled event",
-    start: event.start,
-    end: event.end,
-  }));
+  const schedulerResources: SchedulerResource[] = categories.map(
+    (category, index) => ({
+      id: category.id,
+      title: category.title,
+      eventColor: schedulerColors[index % schedulerColors.length],
+    })
+  );
+
+  const schedulerEvents: CalendarSchedulerEvent[] = filteredEvents.map(
+    (event) => {
+      const categoryIndex = categories.findIndex(
+        (category) => category.id === event.categoryId
+      );
+
+      return {
+        ...event,
+        title: event.title || "Untitled event",
+        color:
+          schedulerColors[
+            Math.max(0, categoryIndex) % schedulerColors.length
+          ],
+        resource: event.categoryId,
+      };
+    }
+  );
+
+  function handleSchedulerEventsChange(updatedEvents: CalendarSchedulerEvent[]) {
+    updatedEvents.forEach((updatedEvent) => {
+      const currentEvent = events.find((event) => event.id === updatedEvent.id);
+
+      if (!currentEvent) {
+        return;
+      }
+
+      const normalizedEvent: EventItem = {
+        ...currentEvent,
+        title: updatedEvent.title,
+        description: updatedEvent.description,
+        start: new Date(updatedEvent.start).toISOString(),
+        end: new Date(updatedEvent.end).toISOString(),
+        categoryId: updatedEvent.resource || updatedEvent.categoryId,
+      };
+
+      if (JSON.stringify(currentEvent) !== JSON.stringify(normalizedEvent)) {
+        handleUpdateEvent(normalizedEvent);
+      }
+    });
+  }
 
   if (isLoading) {
     return (
@@ -231,7 +343,14 @@ export function CalendarPage() {
         </FilterPanel>
       </Popover>
 
-      <Paper sx={{ p: 2 }}>
+      <Paper
+        sx={{
+          p: 2,
+          maxHeight: { xs: 420, md: 520 },
+          overflowY: "auto",
+          scrollbarGutter: "stable",
+        }}
+      >
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1}
@@ -264,6 +383,23 @@ export function CalendarPage() {
                   onClick={() => {
                     setIsNewEvent(false);
                     setSelectedEvent(event);
+                  }}
+                  onMouseEnter={(mouseEvent) => {
+                    setHoveredEvent(event);
+                    setMousePosition({
+                      x: mouseEvent.clientX,
+                      y: mouseEvent.clientY,
+                    });
+                  }}
+                  onMouseMove={(mouseEvent) => {
+                    setMousePosition({
+                      x: mouseEvent.clientX,
+                      y: mouseEvent.clientY,
+                    });
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredEvent(null);
+                    setMousePosition(null);
                   }}
                   sx={{
                     py: 1.5,
@@ -324,11 +460,17 @@ export function CalendarPage() {
         )}
       </Paper>
 
-      <Typography variant="h6">Scheduler Preview</Typography>
+      <Typography variant="h6">Scheduler Calendar</Typography>
 
       <Paper sx={{ height: 650, p: 2 }}>
         <EventCalendar
           events={schedulerEvents}
+          resources={schedulerResources}
+          eventModelStructure={schedulerEventModelStructure}
+          areEventsDraggable
+          areEventsResizable="end"
+          eventCreation={false}
+          onEventsChange={handleSchedulerEventsChange}
           defaultVisibleDate={
             schedulerEvents[0]?.start
               ? new Date(schedulerEvents[0].start)
@@ -336,6 +478,36 @@ export function CalendarPage() {
           }
         />
       </Paper>
+
+      <Popover
+        open={Boolean(hoveredEvent && mousePosition)}
+        anchorReference="anchorPosition"
+        onClose={() => setHoveredEvent(null)}
+        anchorPosition={
+          mousePosition
+            ? { top: mousePosition.y + 10, left: mousePosition.x + 10 }
+            : undefined
+        }
+        sx={{ zIndex: 1500, pointerEvents: "none" }}
+      >
+        {hoveredEvent && (
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: "grey.900",
+              color: "#fff",
+              maxWidth: 260,
+            }}
+          >
+            <Typography sx={{ fontWeight: 800 }}>
+              {hoveredEvent.title || "Untitled event"}
+            </Typography>
+            <Typography variant="body2">
+              {new Date(hoveredEvent.start).toLocaleString()}
+            </Typography>
+          </Paper>
+        )}
+      </Popover>
 
       <EventDialog
         key={`${isNewEvent ? "new" : "existing"}-${selectedEvent?.id ?? "empty"}`}

@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import { styled } from "@mui/material/styles";
 
+// Base visual block for an event in the custom Gantt-style timeline.
 export const TimelineEvent = styled(Box)({
   position: "absolute",
   height: 40,
@@ -10,7 +11,9 @@ export const TimelineEvent = styled(Box)({
   display: "flex",
   alignItems: "center",
   cursor: "pointer",
-  transition: "0.2s",
+  overflow: "hidden",
+  userSelect: "none",
+  transition: "opacity 0.2s ease, transform 0.2s ease",
 
   "&:hover": {
     opacity: 0.9,

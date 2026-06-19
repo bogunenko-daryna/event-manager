@@ -42,22 +42,15 @@ export function TimelinePage() {
     y: number;
   } | null>(null);
 
-  //  Filter
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLElement | null>(
     null
   );
-
-  // additional derived state
   const [isNewEvent, setIsNewEvent] = useState(false);
 
   const isFilterOpen = Boolean(filterAnchorEl);
-
-  // drag and drop state
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
-
-  // resizing state
   const [resizingEventId, setResizingEventId] = useState<string | null>(null);
   const [resizedDraftEvent, setResizedDraftEvent] = useState<EventItem | null>(
     null
@@ -99,11 +92,8 @@ export function TimelinePage() {
 
       setEvents(eventsData);
       setCategories(categoriesData);
-      setIsLoading(false);
-
       setUsers(usersData);
       setTags(tagsData);
-
       setIsLoading(false);
     }
 
@@ -146,8 +136,6 @@ export function TimelinePage() {
     setSelectedEvent(null);
   }
 
-  // Filter
-
   const filteredEvents = events.filter((event) => {
     const matchesCategory =
       !selectedCategory || event.categoryId === selectedCategory;
@@ -159,13 +147,11 @@ export function TimelinePage() {
     return matchesCategory && matchesTags;
   });
 
-  // Add event
   function handleAddEvent() {
     setIsNewEvent(true);
     setSelectedEvent(createEmptyEvent());
   }
 
-  // Drag and drop handlers
   async function handleDropEvent(
     dropEvent: React.DragEvent<HTMLDivElement>,
     categoryId: string
@@ -206,7 +192,6 @@ export function TimelinePage() {
     setDraggingEventId(null);
   }
 
-  // Resize handlers
   async function handleResizeEvent(
     mouseEvent: React.MouseEvent<HTMLDivElement>
   ) {

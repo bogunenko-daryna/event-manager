@@ -11,6 +11,8 @@ type AppLayoutProps = {
   children: ReactNode;
 };
 
+// AppLayout owns the shared shell: sticky header, page navigation, and the
+// content area where Dashboard, Calendar, or Timeline is rendered.
 export function AppLayout({
   activePage,
   onPageChange,
