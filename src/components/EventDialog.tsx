@@ -1,5 +1,6 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
 import { UserPicker } from "./UserPicker";
 import { MultiUserPicker } from "./MultiUserPicker";
 import { TagPicker } from "./TagPicker";
@@ -48,22 +49,46 @@ export function EventDialog({
   isNewEvent,
   onCreate,
 }: EventDialogProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(isNewEvent);
   const [draftEvent, setDraftEvent] = useState<EventItem | null>(event);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    setDraftEvent(event);
-    setIsEditing(Boolean(isNewEvent));
-  }, [event, isNewEvent]);
-
   function toDateTimeLocalValue(date: string) {
-    return date.slice(0, 16);
+    const value = new Date(date);
+    const offset = value.getTimezoneOffset() * 60_000;
+
+    return new Date(value.getTime() - offset).toISOString().slice(0, 16);
   }
 
   function fromDateTimeLocalValue(value: string) {
     return new Date(value).toISOString();
   }
+
+  function getPlainDescription(description: string) {
+    return description.replace(/<[^>]+>/g, "").trim();
+  }
+
+  const hasValidDateRange =
+    draftEvent &&
+    new Date(draftEvent.end).getTime() > new Date(draftEvent.start).getTime();
+
+  const canSave =
+    Boolean(draftEvent?.title.trim()) &&
+    Boolean(draftEvent?.categoryId) &&
+    Boolean(draftEvent?.organiserId) &&
+    Boolean(hasValidDateRange);
+
+  async function saveExistingEvent() {
+    if (!draftEvent || !canSave) {
+      return;
+    }
+
+    setIsSaving(true);
+    await onUpdate(draftEvent);
+    setIsSaving(false);
+    setIsEditing(false);
+  }
+
   useEffect(() => {
     if (isNewEvent || !isEditing || !draftEvent || !event) {
       return;
@@ -76,6 +101,10 @@ export function EventDialog({
     }
 
     const timeoutId = window.setTimeout(async () => {
+      if (!canSave) {
+        return;
+      }
+
       setIsSaving(true);
 
       await onUpdate(draftEvent);
@@ -86,7 +115,7 @@ export function EventDialog({
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [draftEvent, event, isEditing, onUpdate]);
+  }, [canSave, draftEvent, event, isEditing, isNewEvent, onUpdate]);
 
   if (!event || !draftEvent) {
     return null;
@@ -104,6 +133,7 @@ export function EventDialog({
           <TextField
             fullWidth
             label="Title"
+            placeholder="Event title"
             value={draftEvent.title}
             onChange={(e) =>
               setDraftEvent({
@@ -151,6 +181,8 @@ export function EventDialog({
                 <TextField
                   label="End"
                   type="datetime-local"
+                  error={!hasValidDateRange}
+                  helperText={!hasValidDateRange ? "End must be after start" : ""}
                   value={toDateTimeLocalValue(draftEvent.end)}
                   onChange={(event) =>
                     setDraftEvent({
@@ -249,6 +281,7 @@ export function EventDialog({
                 fullWidth
                 multiline
                 rows={4}
+                placeholder="Add agenda, location, links, or notes"
                 value={draftEvent.description}
                 onChange={(e) =>
                   setDraftEvent({
@@ -258,12 +291,9 @@ export function EventDialog({
                 }
               />
             ) : (
-              <Typography
-                sx={{ mt: 1 }}
-                dangerouslySetInnerHTML={{
-                  __html: draftEvent.description,
-                }}
-              />
+              <Typography sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
+                {getPlainDescription(draftEvent.description) || "No description"}
+              </Typography>
             )}
           </Box>
 
@@ -375,12 +405,12 @@ export function EventDialog({
         {isNewEvent ? (
           <Button
             variant="contained"
-            onClick={() => onCreate(draftEvent)}
-            disabled={
-              !draftEvent.title ||
-              !draftEvent.categoryId ||
-              !draftEvent.organiserId
-            }
+            startIcon={<EventAvailableIcon />}
+            onClick={async () => {
+              await onCreate(draftEvent);
+              onClose();
+            }}
+            disabled={!canSave}
           >
             Create
           </Button>
@@ -388,7 +418,15 @@ export function EventDialog({
           <Button
             startIcon={<EditIcon />}
             variant="contained"
-            onClick={() => setIsEditing((currentValue) => !currentValue)}
+            onClick={() => {
+              if (isEditing) {
+                saveExistingEvent();
+                return;
+              }
+
+              setIsEditing(true);
+            }}
+            disabled={isEditing && (!canSave || isSaving)}
           >
             {isEditing ? "Done" : "Edit"}
           </Button>

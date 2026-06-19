@@ -1,15 +1,10 @@
 import { useState } from "react";
-import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { CssBaseline, ThemeProvider } from "@mui/material";
 import { AppLayout } from "./components/AppLayout";
 import { CalendarPage } from "./pages/Calendar";
 import { DashboardPage } from "./pages/Dashboard";
 import { TimelinePage } from "./pages/Timeline";
-
-const theme = createTheme({
-  palette: {
-    mode: "light",
-  },
-});
+import { theme } from "./components/common/theme";
 
 export default function App() {
   const [activePage, setActivePage] = useState("calendar");

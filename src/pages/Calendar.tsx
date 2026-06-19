@@ -1,27 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
-  Paper,
-  Stack,
-  Typography,
-  Button,
+  Divider,
   MenuItem,
+  Paper,
+  Popover,
+  Stack,
   TextField,
+  Typography,
 } from "@mui/material";
-import { TagPicker } from "../components/TagPicker";
-import { mockApi } from "../api/mockApi";
+import AddIcon from "@mui/icons-material/Add";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import { EventCalendar } from "@mui/x-scheduler/event-calendar";
+import type { SchedulerEvent } from "@mui/x-scheduler/models";
+
 import { EventDialog } from "../components/EventDialog";
+import { TagPicker } from "../components/TagPicker";
+import { FilterPanel } from "../components/common/FilterPanel";
+import { mockApi } from "../api/mockApi";
+import { createEmptyEvent } from "../utils/createEmptyEvent";
+
 import type { Category } from "../types/category";
 import type { EventItem } from "../types/event";
 import type { Tag } from "../types/tag";
 import type { User } from "../types/user";
-import { v4 as uuid } from "uuid";
-
-import { EventCalendar } from "@mui/x-scheduler/event-calendar";
-import type { SchedulerEvent } from "@mui/x-scheduler/models";
 
 export function CalendarPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -30,12 +36,16 @@ export function CalendarPage() {
   const [users, setUsers] = useState<User[]>([]);
 
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+  const [isNewEvent, setIsNewEvent] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [isCreating, setIsCreating] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLElement | null>(
+    null
+  );
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const isFilterOpen = Boolean(filterAnchorEl);
 
   useEffect(() => {
     async function loadPageData() {
@@ -57,21 +67,6 @@ export function CalendarPage() {
     loadPageData();
   }, []);
 
-  function handleDeleteEvent(eventId: string) {
-    mockApi.deleteEvent(eventId);
-
-    setEvents((currentEvents) =>
-      currentEvents.filter((event) => event.id !== eventId)
-    );
-
-    setSelectedEvent(null);
-    setIsCreating(false);
-  }
-
-  function getCategory(categoryId: string) {
-    return categories.find((category) => category.id === categoryId);
-  }
-
   const handleUpdateEvent = useCallback(async (updatedEvent: EventItem) => {
     await mockApi.updateEvent(updatedEvent);
 
@@ -80,45 +75,43 @@ export function CalendarPage() {
         event.id === updatedEvent.id ? updatedEvent : event
       )
     );
-
-    setSelectedEvent(updatedEvent);
-    setIsCreating(false);
   }, []);
 
-  const handleCreateEvent = useCallback(async (newEvent: EventItem) => {
-    await mockApi.createEvent(newEvent);
+  async function handleDeleteEvent(eventId: string) {
+    await mockApi.deleteEvent(eventId);
 
-    setEvents((currentEvents) => [...currentEvents, newEvent]);
+    setEvents((currentEvents) =>
+      currentEvents.filter((event) => event.id !== eventId)
+    );
 
-    setSelectedEvent(newEvent);
-    setIsCreating(false);
-  }, []);
+    setSelectedEvent(null);
+    setIsNewEvent(false);
+  }
 
-  function createEmptyEvent(): EventItem {
-    const now = new Date();
+  async function handleCreateEvent(newEvent: EventItem) {
+    const createdEvent = await mockApi.createEvent(newEvent);
 
-    const end = new Date(now.getTime() + 60 * 60 * 1000);
+    setEvents((currentEvents) => [...currentEvents, createdEvent]);
+    setSelectedEvent(null);
+    setIsNewEvent(false);
+  }
 
-    return {
-      id: uuid(),
-      title: "",
-      description: "",
-      start: now.toISOString(),
-      end: end.toISOString(),
-      categoryId: categories[0]?.id ?? "",
-      tagIds: [],
-      organiserId: users[0]?.id ?? "",
-      attendeeIds: [],
-    };
+  function handleAddEvent() {
+    setIsNewEvent(true);
+    setSelectedEvent(createEmptyEvent());
+  }
+
+  function getCategory(categoryId: string) {
+    return categories.find((category) => category.id === categoryId);
   }
 
   const filteredEvents = events.filter((event) => {
     const matchesCategory =
-      !selectedCategoryId || event.categoryId === selectedCategoryId;
+      !selectedCategory || event.categoryId === selectedCategory;
 
     const matchesTags =
-      selectedTagIds.length === 0 ||
-      selectedTagIds.every((tagId) => event.tagIds.includes(tagId));
+      selectedTags.length === 0 ||
+      selectedTags.every((tagId) => event.tagIds.includes(tagId));
 
     return matchesCategory && matchesTags;
   });
@@ -130,87 +123,167 @@ export function CalendarPage() {
     end: event.end,
   }));
 
+  if (isLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Calendar View</Typography>
-
-      <Button
-        variant="contained"
-        onClick={() => {
-          setSelectedEvent(createEmptyEvent());
-          setIsCreating(true);
-        }}
-      >
-        Add Event
-      </Button>
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "1fr 1fr",
-          },
-          gap: 2,
-        }}
-      >
-        <TextField
-          select
-          label="Filter by category"
-          value={selectedCategoryId}
-          onChange={(event) => setSelectedCategoryId(event.target.value)}
-        >
-          <MenuItem value="">All categories</MenuItem>
-
-          {categories.map((category) => (
-            <MenuItem key={category.id} value={category.id}>
-              {category.title}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <TagPicker
-          tags={tags}
-          value={selectedTagIds}
-          onChange={setSelectedTagIds}
-        />
+      <Box>
+        <Typography variant="h5" sx={{ fontWeight: 800 }}>
+          Calendar View
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Browse events, filter by category or tags, and open any event to edit.
+        </Typography>
       </Box>
 
-      <Alert severity="info">
-        Scheduler will be connected after the data layer and dialogs are ready.
-      </Alert>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1.5}
+        sx={{
+          alignItems: { xs: "stretch", sm: "center" },
+          justifyContent: "space-between",
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap" }}
+        >
+          <Button
+            variant="outlined"
+            startIcon={<FilterListIcon />}
+            onClick={(event) =>
+              setFilterAnchorEl(filterAnchorEl ? null : event.currentTarget)
+            }
+          >
+            Filters
+          </Button>
 
-      {isLoading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <Paper sx={{ p: 2 }}>
-          <Stack spacing={2}>
+          {selectedCategory ? (
+            <Chip
+              label={
+                categories.find((category) => category.id === selectedCategory)
+                  ?.title
+              }
+              onDelete={() => setSelectedCategory("")}
+            />
+          ) : null}
+
+          {selectedTags.map((tagId) => (
+            <Chip
+              key={tagId}
+              label={tags.find((tag) => tag.id === tagId)?.title ?? tagId}
+              onDelete={() =>
+                setSelectedTags((currentTags) =>
+                  currentTags.filter((currentTagId) => currentTagId !== tagId)
+                )
+              }
+            />
+          ))}
+        </Stack>
+
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddEvent}>
+          Add Event
+        </Button>
+      </Stack>
+
+      <Popover
+        open={isFilterOpen}
+        anchorEl={filterAnchorEl}
+        onClose={() => setFilterAnchorEl(null)}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "left",
+        }}
+        sx={{ zIndex: 1200 }}
+      >
+        <FilterPanel>
+          <TextField
+            select
+            fullWidth
+            label="Category"
+            value={selectedCategory}
+            onChange={(event) => setSelectedCategory(event.target.value)}
+          >
+            <MenuItem value="">All categories</MenuItem>
+
+            {categories.map((category) => (
+              <MenuItem key={category.id} value={category.id}>
+                {category.title}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Box sx={{ mt: 2 }}>
+            <TagPicker
+              tags={tags}
+              value={selectedTags}
+              onChange={setSelectedTags}
+            />
+          </Box>
+        </FilterPanel>
+      </Popover>
+
+      <Paper sx={{ p: 2 }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          sx={{
+            mb: 2,
+            alignItems: { xs: "flex-start", sm: "center" },
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="h6">Event list</Typography>
+          <Chip
+            label={`${filteredEvents.length} of ${events.length} events`}
+            size="small"
+          />
+        </Stack>
+
+        {filteredEvents.length === 0 ? (
+          <Box sx={{ py: 6, textAlign: "center" }}>
+            <Typography color="text.secondary">No events found</Typography>
+          </Box>
+        ) : (
+          <Stack divider={<Divider flexItem />} spacing={0}>
             {filteredEvents.map((event) => {
               const category = getCategory(event.categoryId);
+              const attendeeCount = event.attendeeIds.length;
 
               return (
-                <Paper
+                <Box
                   key={event.id}
-                  variant="outlined"
                   onClick={() => {
+                    setIsNewEvent(false);
                     setSelectedEvent(event);
-                    setIsCreating(false);
                   }}
                   sx={{
-                    p: 2,
+                    py: 1.5,
+                    px: 1,
                     cursor: "pointer",
-                    borderLeft: 6,
-                    borderLeftColor: category?.color || "divider",
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "minmax(0, 1fr) auto",
+                    },
+                    gap: 1,
+                    borderRadius: 1,
                     "&:hover": {
                       bgcolor: "action.hover",
                     },
                   }}
                 >
                   <Stack spacing={1}>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      {event.title}
+                    <Typography sx={{ fontWeight: 800 }}>
+                      {event.title || "Untitled event"}
                     </Typography>
 
                     <Typography variant="body2" color="text.secondary">
@@ -230,18 +303,26 @@ export function CalendarPage() {
                       />
                     )}
                   </Stack>
-                </Paper>
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    sx={{
+                      alignItems: "center",
+                      color: "text.secondary",
+                      justifyContent: { xs: "flex-start", sm: "flex-end" },
+                    }}
+                  >
+                    <PeopleAltIcon fontSize="small" />
+                    <Typography variant="body2">
+                      {attendeeCount} attendee{attendeeCount === 1 ? "" : "s"}
+                    </Typography>
+                  </Stack>
+                </Box>
               );
             })}
-
-            {filteredEvents.length === 0 && (
-              <Typography color="text.secondary">
-                No events match selected filters.
-              </Typography>
-            )}
           </Stack>
-        </Paper>
-      )}
+        )}
+      </Paper>
 
       <Typography variant="h6">Scheduler Preview</Typography>
 
@@ -257,6 +338,7 @@ export function CalendarPage() {
       </Paper>
 
       <EventDialog
+        key={`${isNewEvent ? "new" : "existing"}-${selectedEvent?.id ?? "empty"}`}
         open={Boolean(selectedEvent)}
         event={selectedEvent}
         categories={categories}
@@ -264,11 +346,11 @@ export function CalendarPage() {
         users={users}
         onClose={() => {
           setSelectedEvent(null);
-          setIsCreating(false);
+          setIsNewEvent(false);
         }}
         onDelete={handleDeleteEvent}
         onUpdate={handleUpdateEvent}
-        isNewEvent={isCreating}
+        isNewEvent={isNewEvent}
         onCreate={handleCreateEvent}
       />
     </Stack>

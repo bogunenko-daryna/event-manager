@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import TimelineIcon from "@mui/icons-material/Timeline";
+import EventNoteIcon from "@mui/icons-material/EventNote";
 import { Box, Button, Stack, Typography } from "@mui/material";
 
 type AppLayoutProps = {
@@ -19,20 +20,56 @@ export function AppLayout({
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <Box
         sx={{
-          px: 3,
-          py: 2,
-          borderBottom: 1,
+          px: { xs: 2, md: 4 },
+          py: 1.5,
+          borderBottom: "1px solid",
           borderColor: "divider",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 2,
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          bgcolor: "rgba(255, 255, 255, 0.88)",
+          backdropFilter: "blur(12px)",
         }}
       >
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Event Manager
-        </Typography>
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+          <Box
+            sx={{
+              width: 38,
+              height: 38,
+              borderRadius: 2,
+              bgcolor: "primary.main",
+              color: "#fff",
+              display: "grid",
+              placeItems: "center",
+              boxShadow: "0 10px 18px rgba(37, 99, 235, 0.25)",
+            }}
+          >
+            <EventNoteIcon />
+          </Box>
 
-        <Stack direction="row" spacing={1}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.1 }}>
+              Event Manager
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Plan, assign, and track team events
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            overflowX: "auto",
+            pb: 0.5,
+            maxWidth: { xs: "55vw", sm: "none" },
+          }}
+        >
           <Button
             variant={activePage === "dashboard" ? "contained" : "text"}
             startIcon={<DashboardIcon />}
