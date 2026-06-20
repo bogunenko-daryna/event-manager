@@ -10,8 +10,9 @@ import {
   MenuItem,
   Button,
   Stack,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import { mockApi } from "../api/mockApi";
 import type { Category } from "../types/category";
@@ -20,18 +21,23 @@ import type { Tag } from "../types/tag";
 import type { User } from "../types/user";
 import { EventDialog } from "../components/EventDialog";
 import { TagPicker } from "../components/TagPicker";
+import { CreateEventButton } from "../components/common/CreateEventButton";
 import { TimelineEvent } from "../components/common/TimelineEvent";
 import { FilterPanel } from "../components/common/FilterPanel";
 
 import { createEmptyEvent } from "../utils/createEmptyEvent";
 
 export function TimelinePage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [events, setEvents] = useState<EventItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const DAY_WIDTH = 100;
-  const CATEGORY_WIDTH = 180;
-  const EVENT_HEIGHT = 40;
+  // Timeline is drawn manually, so these values control the timeline scale. They
+  // are smaller on mobile to reduce horizontal scrolling.
+  const DAY_WIDTH = isMobile ? 72 : 100;
+  const CATEGORY_WIDTH = isMobile ? 132 : 180;
+  const EVENT_HEIGHT = isMobile ? 38 : 40;
   const EVENT_GAP = 10;
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -56,6 +62,7 @@ export function TimelinePage() {
     null
   );
 
+  // Converts an event start date into an x-position from the beginning of June.
   function getLeftOffset(date: string) {
     const start = new Date("2026-06-01").getTime();
     const current = new Date(date).getTime();
@@ -66,6 +73,7 @@ export function TimelinePage() {
     );
   }
 
+  // Converts the event duration into a visual bar width.
   function getWidth(start: string, end: string) {
     const startTime = new Date(start).getTime();
     const endTime = new Date(end).getTime();
@@ -80,6 +88,8 @@ export function TimelinePage() {
     );
   }
 
+  // Timeline needs all lookup data because it renders categories, filters,
+  // dialog user fields, and tag selectors.
   useEffect(() => {
     async function loadData() {
       const [eventsData, categoriesData, usersData, tagsData] =
@@ -136,6 +146,7 @@ export function TimelinePage() {
     setSelectedEvent(null);
   }
 
+  // Same filter behaviour as Calendar: optional category plus all selected tags.
   const filteredEvents = events.filter((event) => {
     const matchesCategory =
       !selectedCategory || event.categoryId === selectedCategory;
@@ -152,6 +163,8 @@ export function TimelinePage() {
     setSelectedEvent(createEmptyEvent());
   }
 
+  // Dropping an event into a category row changes both the category and the date,
+  // while preserving the original event duration.
   async function handleDropEvent(
     dropEvent: React.DragEvent<HTMLDivElement>,
     categoryId: string
@@ -192,6 +205,8 @@ export function TimelinePage() {
     setDraggingEventId(null);
   }
 
+  // During resize, local state is updated immediately for responsive feedback;
+  // the final version is persisted on mouse up.
   async function handleResizeEvent(
     mouseEvent: React.MouseEvent<HTMLDivElement>
   ) {
@@ -244,7 +259,7 @@ export function TimelinePage() {
         </Typography>
       </Box>
 
-      <Paper sx={{ p: 2, overflowX: "auto" }}>
+      <Paper sx={{ p: { xs: 1.5, sm: 2 }, overflowX: "auto" }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1.5}
@@ -330,16 +345,8 @@ export function TimelinePage() {
             ))}
           </Stack>
 
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleAddEvent}
-          >
-            Add Event
-          </Button>
+          <CreateEventButton onClick={handleAddEvent} />
         </Stack>
-
-        {/* HEADER */}
 
         <Box
           sx={{
@@ -376,15 +383,12 @@ export function TimelinePage() {
           </Box>
         </Box>
 
-        {/* No events found message */}
-
         {filteredEvents.length === 0 && (
           <Box sx={{ py: 6, textAlign: "center" }}>
             <Typography color="text.secondary">No events found</Typography>
           </Box>
         )}
 
-        {/* ROWS */}
         {filteredEvents.length > 0 &&
           categories.map((category) => {
             const categoryEvents = filteredEvents.filter(
@@ -407,25 +411,24 @@ export function TimelinePage() {
                   minWidth: CATEGORY_WIDTH + 30 * DAY_WIDTH,
                 }}
               >
-                {/* LEFT CATEGORY */}
                 <Box
                   sx={{
                     width: CATEGORY_WIDTH,
                     flexShrink: 0,
-                    pr: 2,
+                    pr: { xs: 1, sm: 2 },
                   }}
                 >
                   <Chip
                     label={category.title}
+                    size={isMobile ? "small" : "medium"}
                     sx={{
                       bgcolor: category.color,
                       color: "#fff",
                       fontWeight: 700,
+                      maxWidth: "100%",
                     }}
                   />
                 </Box>
-
-                {/* TIMELINE ROW */}
 
                 <Box
                   onMouseMove={(mouseEvent) => {
@@ -511,7 +514,7 @@ rgba(0,0,0,0.1) ${DAY_WIDTH}px
                         boxShadow: "0 10px 22px rgba(15, 23, 42, 0.18)",
                       }}
                     >
-                      <Typography variant="body2" noWrap>
+                      <Typography variant="body2" noWrap sx={{ fontSize: { xs: 12, sm: 14 } }}>
                         {event.title}
                       </Typography>
                       <Box
@@ -537,7 +540,6 @@ rgba(0,0,0,0.1) ${DAY_WIDTH}px
           })}
       </Paper>
 
-      {/* Hover info popper */}
       <Popover
         open={Boolean(hoveredEvent && mousePosition)}
         anchorReference="anchorPosition"

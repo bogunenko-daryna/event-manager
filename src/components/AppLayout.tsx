@@ -27,9 +27,10 @@ export function AppLayout({
           borderBottom: "1px solid",
           borderColor: "divider",
           display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 2,
+          gap: { xs: 1.5, sm: 2 },
           position: "sticky",
           top: 0,
           zIndex: 10,
@@ -45,8 +46,9 @@ export function AppLayout({
               borderRadius: 2,
               bgcolor: "primary.main",
               color: "#fff",
-              display: "grid",
-              placeItems: "center",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               boxShadow: "0 10px 18px rgba(37, 99, 235, 0.25)",
             }}
           >
@@ -65,17 +67,19 @@ export function AppLayout({
 
         <Stack
           direction="row"
-          spacing={1}
+          spacing={{ xs: 0.5, sm: 1 }}
           sx={{
             overflowX: "auto",
             pb: 0.5,
-            maxWidth: { xs: "55vw", sm: "none" },
+            width: { xs: "100%", sm: "auto" },
+            maxWidth: "100%",
           }}
         >
           <Button
             variant={activePage === "dashboard" ? "contained" : "text"}
             startIcon={<DashboardIcon />}
             onClick={() => onPageChange("dashboard")}
+            sx={{ flexShrink: 0 }}
           >
             Dashboard
           </Button>
@@ -84,6 +88,7 @@ export function AppLayout({
             variant={activePage === "calendar" ? "contained" : "text"}
             startIcon={<CalendarMonthIcon />}
             onClick={() => onPageChange("calendar")}
+            sx={{ flexShrink: 0 }}
           >
             Calendar
           </Button>
@@ -92,13 +97,14 @@ export function AppLayout({
             variant={activePage === "timeline" ? "contained" : "text"}
             startIcon={<TimelineIcon />}
             onClick={() => onPageChange("timeline")}
+            sx={{ flexShrink: 0 }}
           >
             Timeline
           </Button>
         </Stack>
       </Box>
 
-      <Box sx={{ p: 3 }}>{children}</Box>
+      <Box sx={{ p: { xs: 2, md: 3 } }}>{children}</Box>
     </Box>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -12,7 +12,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import { EventCalendar } from "@mui/x-scheduler/event-calendar";
@@ -24,6 +23,7 @@ import type {
 
 import { EventDialog } from "../components/EventDialog";
 import { TagPicker } from "../components/TagPicker";
+import { CreateEventButton } from "../components/common/CreateEventButton";
 import { FilterPanel } from "../components/common/FilterPanel";
 import { mockApi } from "../api/mockApi";
 import { createEmptyEvent } from "../utils/createEmptyEvent";
@@ -34,10 +34,15 @@ import type { Tag } from "../types/tag";
 import type { User } from "../types/user";
 
 type CalendarSchedulerEvent = EventItem & {
+  className: string;
   color: SchedulerEventColor;
   resource: string;
 };
 
+const schedulerEventClassPrefix = "event-manager-calendar-event--";
+
+// MUI Scheduler uses its own named color palette, so category colors are mapped
+// to the closest scheduler-supported color names for the calendar surface.
 const schedulerColors: SchedulerEventColor[] = [
   "blue",
   "purple",
@@ -95,6 +100,8 @@ const schedulerEventModelStructure: SchedulerEventModelStructure<CalendarSchedul
   };
 
 export function CalendarPage() {
+  const eventListRef = useRef<HTMLDivElement | null>(null);
+
   const [events, setEvents] = useState<EventItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -117,6 +124,43 @@ export function CalendarPage() {
 
   const isFilterOpen = Boolean(filterAnchorEl);
 
+  useEffect(() => {
+    const currentEventList = eventListRef.current;
+
+    if (!currentEventList) {
+      return undefined;
+    }
+
+    const handleEventListWheel = (event: WheelEvent) => {
+      const isAtTop = currentEventList.scrollTop <= 0;
+      const isAtBottom =
+        currentEventList.scrollTop + currentEventList.clientHeight >=
+        currentEventList.scrollHeight - 1;
+      const shouldPassScrollToPage =
+        (event.deltaY < 0 && isAtTop) || (event.deltaY > 0 && isAtBottom);
+
+      if (!shouldPassScrollToPage) {
+        return;
+      }
+
+      event.preventDefault();
+      window.scrollBy({
+        top: event.deltaY,
+        behavior: "auto",
+      });
+    };
+
+    currentEventList.addEventListener("wheel", handleEventListWheel, {
+      passive: false,
+    });
+
+    return () => {
+      currentEventList.removeEventListener("wheel", handleEventListWheel);
+    };
+  }, [isLoading]);
+
+  // Calendar needs events plus lookup data so event rows can show labels,
+  // category chips, tags, organisers, and attendees instead of raw IDs.
   useEffect(() => {
     async function loadPageData() {
       const [eventsData, categoriesData, tagsData, usersData] =
@@ -175,6 +219,8 @@ export function CalendarPage() {
     return categories.find((category) => category.id === categoryId);
   }
 
+  // Both filters are combined: category is a single-select filter, while tags
+  // require the event to contain every selected tag.
   const filteredEvents = events.filter((event) => {
     const matchesCategory =
       !selectedCategory || event.categoryId === selectedCategory;
@@ -194,6 +240,8 @@ export function CalendarPage() {
     })
   );
 
+  // The scheduler needs `resource` and `color` fields, while the app data model
+  // stores `categoryId`. This mapping keeps the app model clean.
   const schedulerEvents: CalendarSchedulerEvent[] = filteredEvents.map(
     (event) => {
       const categoryIndex = categories.findIndex(
@@ -202,6 +250,7 @@ export function CalendarPage() {
 
       return {
         ...event,
+        className: `${schedulerEventClassPrefix}${event.id}`,
         title: event.title || "Untitled event",
         color:
           schedulerColors[
@@ -212,6 +261,40 @@ export function CalendarPage() {
     }
   );
 
+  function handleSchedulerEventClick(
+    event: React.MouseEvent<HTMLDivElement>
+  ) {
+    const target = event.target as HTMLElement;
+    const schedulerEventElement = target.closest<HTMLElement>(
+      "[class*='event-manager-calendar-event--']"
+    );
+
+    if (!schedulerEventElement) {
+      return;
+    }
+
+    const eventClassName = Array.from(schedulerEventElement.classList).find(
+      (className) => className.startsWith(schedulerEventClassPrefix)
+    );
+    const eventId = eventClassName?.replace(schedulerEventClassPrefix, "");
+    const clickedEvent = events.find(
+      (currentEvent) => currentEvent.id === eventId
+    );
+
+    if (!clickedEvent) {
+      return;
+    }
+
+    // MUI Scheduler opens its own internal dialog on event click. Capturing the
+    // click here lets the app use the project EventDialog instead.
+    event.preventDefault();
+    event.stopPropagation();
+    setIsNewEvent(false);
+    setSelectedEvent(clickedEvent);
+  }
+
+  // When the user drags/resizes inside MUI Scheduler, the scheduler returns its
+  // event shape. This converts it back to EventItem and persists it.
   function handleSchedulerEventsChange(updatedEvents: CalendarSchedulerEvent[]) {
     updatedEvents.forEach((updatedEvent) => {
       const currentEvent = events.find((event) => event.id === updatedEvent.id);
@@ -301,9 +384,7 @@ export function CalendarPage() {
           ))}
         </Stack>
 
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddEvent}>
-          Add Event
-        </Button>
+        <CreateEventButton onClick={handleAddEvent} />
       </Stack>
 
       <Popover
@@ -344,9 +425,10 @@ export function CalendarPage() {
       </Popover>
 
       <Paper
+        ref={eventListRef}
         sx={{
           p: 2,
-          maxHeight: { xs: 420, md: 520 },
+          maxHeight: { xs: 360, sm: 420, md: 520 },
           overflowY: "auto",
           scrollbarGutter: "stable",
         }}
@@ -405,11 +487,10 @@ export function CalendarPage() {
                     py: 1.5,
                     px: 1,
                     cursor: "pointer",
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      sm: "minmax(0, 1fr) auto",
-                    },
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    justifyContent: "space-between",
+                    alignItems: { xs: "flex-start", sm: "center" },
                     gap: 1,
                     borderRadius: 1,
                     "&:hover": {
@@ -462,7 +543,14 @@ export function CalendarPage() {
 
       <Typography variant="h6">Scheduler Calendar</Typography>
 
-      <Paper sx={{ height: 650, p: 2 }}>
+      <Paper
+        onClickCapture={handleSchedulerEventClick}
+        sx={{
+          height: { xs: 520, md: 650 },
+          p: { xs: 1, sm: 2 },
+          overflow: "hidden",
+        }}
+      >
         <EventCalendar
           events={schedulerEvents}
           resources={schedulerResources}

@@ -8,6 +8,8 @@ import {
   Chip,
   Divider,
   Stack,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import CategoryIcon from "@mui/icons-material/Category";
@@ -19,10 +21,14 @@ import type { EventItem } from "../types/event";
 import type { Category } from "../types/category";
 
 export function DashboardPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [events, setEvents] = useState<EventItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Dashboard is read-only, so it only needs events and categories to calculate
+  // charts, counters, and upcoming event summaries.
   useEffect(() => {
     async function loadData() {
       const [eventsData, categoriesData] = await Promise.all([
@@ -42,12 +48,15 @@ export function DashboardPage() {
     return <CircularProgress />;
   }
 
+  // PieChart expects one row per category with a numeric value.
   const pieData = categories.map((category) => ({
     id: category.id,
     label: category.title,
     value: events.filter((event) => event.categoryId === category.id).length,
   }));
 
+  // BarChart uses a fixed 12-item array so every month is shown, even months
+  // with zero events.
   const monthData = Array.from({ length: 12 }).map((_, index) => {
     const count = events.filter(
       (event) => new Date(event.start).getMonth() === index
@@ -56,6 +65,7 @@ export function DashboardPage() {
     return count;
   });
 
+  // Upcoming events are sorted by date and limited to keep the dashboard scannable.
   const upcomingEvents = events
     .filter((event) => new Date(event.start) >= new Date())
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
@@ -80,6 +90,7 @@ export function DashboardPage() {
     "Nov",
     "Dec",
   ];
+  // Summary cards reuse the same structure so the UI can be rendered with one map.
   const stats = [
     {
       label: "Total events",
@@ -120,17 +131,22 @@ export function DashboardPage() {
 
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
-          },
+          display: "flex",
+          flexWrap: "wrap",
           gap: 2,
         }}
       >
         {stats.map((stat) => (
-          <Card key={stat.label}>
+          <Card
+            key={stat.label}
+            sx={{
+              flex: {
+                xs: "1 1 100%",
+                sm: "1 1 calc(50% - 16px)",
+                lg: "1 1 calc(25% - 16px)",
+              },
+            }}
+          >
             <CardContent>
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <Box
@@ -138,8 +154,9 @@ export function DashboardPage() {
                     width: 42,
                     height: 42,
                     borderRadius: 2,
-                    display: "grid",
-                    placeItems: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     color: "#fff",
                     bgcolor: stat.color,
                   }}
@@ -161,7 +178,7 @@ export function DashboardPage() {
       </Box>
 
       <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-        <Card sx={{ flex: 1, minWidth: 300 }}>
+        <Card sx={{ flex: 1, minWidth: { xs: "100%", md: 300 } }}>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
               Events by Category
@@ -175,13 +192,13 @@ export function DashboardPage() {
                   paddingAngle: 2,
                 },
               ]}
-              width={400}
-              height={250}
+              width={isMobile ? 300 : 400}
+              height={isMobile ? 220 : 250}
             />
           </CardContent>
         </Card>
 
-        <Card sx={{ flex: 1, minWidth: 300 }}>
+        <Card sx={{ flex: 1, minWidth: { xs: "100%", md: 300 } }}>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
               Events by Month
@@ -201,8 +218,8 @@ export function DashboardPage() {
                   data: monthData,
                 },
               ]}
-              width={500}
-              height={250}
+              width={isMobile ? 300 : 500}
+              height={isMobile ? 220 : 250}
             />
           </CardContent>
         </Card>

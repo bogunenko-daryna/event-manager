@@ -1,6 +1,6 @@
 import type { User } from "../types/user";
 
-const USERS_PER_GENDER = 150;
+const USERS_PER_GENDER = 50;
 
 const womenFirstNames = [
   "Maria",
@@ -40,25 +40,105 @@ const menFirstNames = [
 
 const lastNames = [
   "Smith",
-  "Novak",
-  "Wilson",
+  "Jones",
+  "Williams",
   "Brown",
-  "Davis",
-  "Miller",
-  "Garcia",
-  "Rodriguez",
-  "Martinez",
-  "Anderson",
   "Taylor",
-  "Thomas",
-  "Moore",
-  "Jackson",
-  "White",
-  "Harris",
-  "Martin",
-  "Thompson",
+  "Wilson",
+  "Johnson",
+  "Davies",
   "Robinson",
+  "Wright",
+  "Thompson",
+  "Evans",
+  "Walker",
+  "White",
+  "Edwards",
+  "Hughes",
+  "Green",
+  "Hall",
+  "Lewis",
+  "Harris",
+  "Clarke",
+  "Jackson",
+  "Wood",
+  "Turner",
+  "Martin",
+  "Cooper",
+  "Hill",
+  "Ward",
+  "Morris",
+  "Moore",
   "Clark",
+  "King",
+  "Baker",
+  "Carter",
+  "Parker",
+  "Collins",
+  "Stewart",
+  "Foster",
+  "Reed",
+  "Morgan",
+  "Bell",
+  "Murphy",
+  "Bailey",
+  "Miller",
+  "Davis",
+  "Anderson",
+  "Thomas",
+  "Scott",
+  "Mitchell",
+  "Adams",
+  "Nelson",
+  "Campbell",
+  "Phillips",
+  "Roberts",
+  "Turnbull",
+  "Bennett",
+  "Gray",
+  "James",
+  "Watson",
+  "Brooks",
+  "Kelly",
+  "Sanders",
+  "Price",
+  "Barker",
+  "Pearson",
+  "Richards",
+  "Russell",
+  "Hamilton",
+  "Graham",
+  "Kennedy",
+  "Marshall",
+  "Butler",
+  "Sullivan",
+  "Henderson",
+  "Cole",
+  "West",
+  "Murray",
+  "Palmer",
+  "Spencer",
+  "Holmes",
+  "Grant",
+  "Wallace",
+  "Fisher",
+  "Barnes",
+  "Knight",
+  "Webb",
+  "Chapman",
+  "Dixon",
+  "Harvey",
+  "Mason",
+  "Harrison",
+  "Gibson",
+  "Hunt",
+  "Porter",
+  "Ford",
+  "Ellis",
+  "Shaw",
+  "Payne",
+  "Wells",
+  "Armstrong",
 ];
 
 function createUsers(
@@ -69,14 +149,19 @@ function createUsers(
 ): User[] {
   return Array.from({ length: count }, (_, index) => {
     const firstName = firstNames[index % firstNames.length];
-    const lastName = lastNames[Math.floor(index / firstNames.length) % lastNames.length];
+    const lastName = lastNames[(startIndex + index - 1) % lastNames.length];
+    const hasAvatar = index % 2 === 0;
 
     return {
       id: `user-${startIndex + index}`,
       fullName: `${firstName} ${lastName}`,
-      avatar: `https://randomuser.me/api/portraits/${avatarFolder}/${
-        index % 100
-      }.jpg`,
+      ...(hasAvatar
+        ? {
+            avatar: `https://randomuser.me/api/portraits/${avatarFolder}/${
+              index % 100
+            }.jpg`,
+          }
+        : {}),
     };
   });
 }

@@ -1,6 +1,7 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import CloseIcon from "@mui/icons-material/Close";
 import { UserPicker } from "./UserPicker";
 import { MultiUserPicker } from "./MultiUserPicker";
 import { TagPicker } from "./TagPicker";
@@ -18,6 +19,8 @@ import {
   Typography,
   TextField,
   MenuItem,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import type { Category } from "../types/category";
 import type { EventItem } from "../types/event";
@@ -53,6 +56,8 @@ export function EventDialog({
   isNewEvent,
   onCreate,
 }: EventDialogProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [isEditing, setIsEditing] = useState(isNewEvent);
   const [draftEvent, setDraftEvent] = useState<EventItem | null>(event);
   const [isSaving, setIsSaving] = useState(false);
@@ -88,6 +93,16 @@ export function EventDialog({
     setIsSaving(true);
     await onUpdate(draftEvent);
     setIsSaving(false);
+    setIsEditing(false);
+  }
+
+  function handleCancel() {
+    if (isNewEvent) {
+      onClose();
+      return;
+    }
+
+    setDraftEvent(event);
     setIsEditing(false);
   }
 
@@ -133,7 +148,14 @@ export function EventDialog({
   const attendees = users.filter((user) => event.attendeeIds.includes(user.id));
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      disableRestoreFocus
+      fullWidth
+      fullScreen={isMobile}
+      maxWidth="sm"
+    >
       <DialogTitle>
         {isEditing ? (
           <TextField
@@ -153,7 +175,7 @@ export function EventDialog({
         )}
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent dividers={isMobile}>
         <Stack spacing={3}>
           <Box>
             <Typography variant="subtitle2" color="text.secondary">
@@ -164,17 +186,15 @@ export function EventDialog({
               <Box
                 sx={{
                   mt: 1,
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "1fr 1fr",
-                  },
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
                   gap: 2,
                 }}
               >
                 <TextField
                   label="Start"
                   type="datetime-local"
+                  fullWidth
                   value={toDateTimeLocalValue(draftEvent.start)}
                   onChange={(event) =>
                     setDraftEvent({
@@ -187,8 +207,11 @@ export function EventDialog({
                 <TextField
                   label="End"
                   type="datetime-local"
+                  fullWidth
                   error={!hasValidDateRange}
-                  helperText={!hasValidDateRange ? "End must be after start" : ""}
+                  helperText={
+                    !hasValidDateRange ? "End must be after start" : ""
+                  }
                   value={toDateTimeLocalValue(draftEvent.end)}
                   onChange={(event) =>
                     setDraftEvent({
@@ -308,9 +331,7 @@ export function EventDialog({
                     }}
                   />
                 ) : (
-                  <Typography color="text.secondary">
-                    No description
-                  </Typography>
+                  <Typography color="text.secondary">No description</Typography>
                 )}
               </Box>
             )}
@@ -400,12 +421,18 @@ export function EventDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions
+        sx={{
+          flexDirection: { xs: "column-reverse", sm: "row" },
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: { xs: 1, sm: 0 },
+        }}
+      >
         {isEditing && !isNewEvent && (
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{ mr: "auto" }}
+            sx={{ mr: { sm: "auto" }, textAlign: { xs: "center", sm: "left" } }}
           >
             {isSaving ? "Saving..." : "Changes save automatically"}
           </Typography>
@@ -418,6 +445,12 @@ export function EventDialog({
             onClick={() => onDelete(draftEvent.id)}
           >
             Delete
+          </Button>
+        )}
+
+        {isEditing && (
+          <Button startIcon={<CloseIcon />} onClick={handleCancel}>
+            Cancel
           </Button>
         )}
 
